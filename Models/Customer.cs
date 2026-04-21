@@ -21,6 +21,9 @@ namespace TechTrackerBlazor.Models
         [Phone]
         public string Phone { get; set; } = string.Empty;
 
+
+        ///indexes to-be-implemented: FirstName, LastName, Email, Phone  aislopfilledthistext
+        ///NOT RESTRICTED TO THESE!!! ADD/CHANGE IF WE NEED MORE OR BETTER ONES
         public DateTime CreationDate { get; set; } = DateTime.Today;
 
         public string SearchFirstName { get; set; } = string.Empty;

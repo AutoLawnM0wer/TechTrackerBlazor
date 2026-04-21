@@ -1,5 +1,7 @@
+using DotNetEnv;
 using TechTrackerBlazor.Components;
 using TechTrackerBlazor.Settings;
+using TechTrackerBlazor.Services;
 
 namespace TechTrackerBlazor
 {
@@ -8,12 +10,13 @@ namespace TechTrackerBlazor
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
-
+            Env.Load("connection.env");
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
 
             builder.Services.Configure<MongoDbSettings>(
                 builder.Configuration.GetSection("MongoDbSettings"));
+                     builder.Services.AddSingleton<TechTrackerHell>();
 
             var app = builder.Build();
 
