@@ -9,7 +9,6 @@ namespace TechTrackerBlazor.Services;
 public class TechTrackerHell
 {
     private static readonly string[] ActiveRepairStatuses = ["Pending", "In Progress", "Completed"];
-
     private readonly IMongoCollection<Customer> customers;
     private readonly IMongoCollection<DeviceAsset> devices;
     private readonly IMongoCollection<Employee> employees;
@@ -29,9 +28,7 @@ public class TechTrackerHell
         repairs = database.GetCollection<RepairOrder>("RepairOrders");
         transactions = database.GetCollection<TransactionRecord>("Transactions");
     }
-
     // --- DASHBOARD ANALYTICS METHODS ---
-
     // Requirement: Average repair turnaround times
     public async Task<double> GetAverageTurnaroundTimeAsync()
     {
@@ -48,13 +45,10 @@ public class TechTrackerHell
                 { "AvgTime", new BsonDocument("$avg", "$Duration") }
             })
         };
-
         var result = await repairs.Aggregate<BsonDocument>(pipeline).FirstOrDefaultAsync();
-
         if (result == null || !result.Contains("AvgTime")) return 0;
-
         double ms = result["AvgTime"].ToDouble();
-        return Math.Round(ms / (1000 * 60 * 60 * 24), 1); // Converts milliseconds to days
+        return Math.Round(ms / (1000 * 60 * 60 * 24), 1); 
     }
 
     // Requirement: Most frequent repair types (Bar Chart Data)
