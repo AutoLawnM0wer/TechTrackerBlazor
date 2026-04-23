@@ -9,7 +9,7 @@
   <ItemGroup>
     <PackageReference Include="DotNetEnv" Version="3.1.1" />
     <PackageReference Include="MongoDB.Driver" Version="3.7.1" />
-    #THIS PACKAGE NEED TO BE ADDED OR EVERYTHING BREAKS
+    <!-- THIS PACKAGE NEED TO BE ADDED OR EVERYTHING BREAKS -->
     <PackageReference Include="ChartJs.Blazor.Fork" Version="2.0.2" />
   </ItemGroup>
 
