@@ -105,13 +105,11 @@
             }
         };
 
-        // Add Labels (Repair Statuses/Types)
         foreach (var key in repairStats.Keys)
         {
             _barConfig.Data.Labels.Add(key);
         }
 
-        // Add Data points
         IDataset<int> dataset = new BarDataset<int>(repairStats.Values)
         {
             BackgroundColor = new[] { "#0d6efd", "#198754", "#ffc107", "#dc3545" }
