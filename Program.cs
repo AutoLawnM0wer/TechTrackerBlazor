@@ -9,8 +9,8 @@ namespace TechTrackerBlazor
     {
         public static void Main(string[] args)
         {
-            var builder = WebApplication.CreateBuilder(args);
             Env.Load("connection.env");
+            var builder = WebApplication.CreateBuilder(args);
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
 
