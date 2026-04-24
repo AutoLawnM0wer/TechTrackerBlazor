@@ -2,13 +2,14 @@ using MongoDB.Driver;
 using MongoDB.Bson;
 using Microsoft.Extensions.Options;
 using TechTrackerBlazor.Models;
-using TechTrackerBlazor.Settings; 
+using TechTrackerBlazor.Settings;
 
 namespace TechTrackerBlazor.Services;
 
 public class TechTrackerHell
 {
     private static readonly string[] ActiveRepairStatuses = ["Pending", "In Progress", "Completed"];
+    private readonly IMongoDatabase database;
     private readonly IMongoCollection<Customer> customers;
     private readonly IMongoCollection<DeviceAsset> devices;
     private readonly IMongoCollection<Employee> employees;
@@ -19,7 +20,7 @@ public class TechTrackerHell
     public TechTrackerHell(IOptions<MongoDbSettings> settings)
     {
         var client = new MongoClient(settings.Value.ConnectionString);
-        var database = client.GetDatabase(settings.Value.DatabaseName);
+        database = client.GetDatabase(settings.Value.DatabaseName);
 
         customers = database.GetCollection<Customer>("Customers");
         devices = database.GetCollection<DeviceAsset>("Devices");
@@ -63,7 +64,9 @@ public class TechTrackerHell
         };
         
         var result = await repairs.Aggregate<BsonDocument>(pipeline).ToListAsync();
-        return result.ToDictionary(x => x["_id"].ToString(), x => x["count"].AsInt32);
+        return result.ToDictionary(
+            x => GetRepairStatsKey(x["_id"]),
+            x => x["count"].AsInt32);
     }
 
     // Requirement: Monthly revenue trends (Line Chart Data)
@@ -71,8 +74,10 @@ public class TechTrackerHell
     {
         var result = await transactions.Find(t => t.Completed).ToListAsync();
 
-        return result.GroupBy(t => t.Date.ToString("MMM yyyy"))
-            .ToDictionary(g => g.Key, g => g.Sum(t => t.Cost));
+        return result
+            .GroupBy(t => new DateTime(t.Date.Year, t.Date.Month, 1))
+            .OrderBy(g => g.Key)
+            .ToDictionary(g => g.Key.ToString("MMM yyyy"), g => g.Sum(t => t.Cost));
     }
 
     // --- EXISTING DATA METHODS ---
@@ -80,5 +85,33 @@ public class TechTrackerHell
     public async Task<List<Customer>> GetAllCustomersAsync()
     {
         return await customers.Find(_ => true).ToListAsync();
+    }
+
+    public async Task<List<BsonDocument>> GetCollectionDocumentsAsync(string collectionName)
+    {
+        return await database
+            .GetCollection<BsonDocument>(collectionName)
+            .Find(FilterDefinition<BsonDocument>.Empty)
+            .ToListAsync();
+    }
+
+    public Task<List<BsonDocument>> GetAllDevicesAsync() => GetCollectionDocumentsAsync("Devices");
+
+    public Task<List<BsonDocument>> GetAllEmployeesAsync() => GetCollectionDocumentsAsync("Employees");
+
+    public Task<List<BsonDocument>> GetAllInventoryAsync() => GetCollectionDocumentsAsync("Inventory");
+
+    public Task<List<BsonDocument>> GetAllRepairOrdersAsync() => GetCollectionDocumentsAsync("RepairOrders");
+
+    public Task<List<BsonDocument>> GetAllTransactionsAsync() => GetCollectionDocumentsAsync("Transactions");
+
+    private static string GetRepairStatsKey(BsonValue value)
+    {
+        if (value.IsBsonNull)
+        {
+            return "Unknown";
+        }
+
+        return value.ToString() ?? "Unknown";
     }
 }

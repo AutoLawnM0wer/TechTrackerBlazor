@@ -1,6 +1,19 @@
-﻿@page "/Inventory"
+@page "/Inventory"
+@using MongoDB.Bson
+@using TechTrackerBlazor.Services
+@inject TechTrackerHell DbService
 
 <PageTitle>Inventory</PageTitle>
 
 <h1>Inventory</h1>
 
+<CollectionTable CollectionName="Inventory" Documents="inventoryList" />
+
+@code {
+    private List<BsonDocument>? inventoryList;
+
+    protected override async Task OnInitializedAsync()
+    {
+        inventoryList = await DbService.GetAllInventoryAsync();
+    }
+}

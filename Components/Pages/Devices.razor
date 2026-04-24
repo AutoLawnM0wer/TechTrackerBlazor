@@ -1,6 +1,19 @@
-﻿@page "/Devices"
+@page "/Devices"
+@using MongoDB.Bson
+@using TechTrackerBlazor.Services
+@inject TechTrackerHell DbService
 
 <PageTitle>Devices</PageTitle>
 
 <h1>Devices</h1>
 
+<CollectionTable CollectionName="Devices" Documents="deviceList" />
+
+@code {
+    private List<BsonDocument>? deviceList;
+
+    protected override async Task OnInitializedAsync()
+    {
+        deviceList = await DbService.GetAllDevicesAsync();
+    }
+}

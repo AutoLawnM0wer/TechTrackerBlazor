@@ -1,0 +1,129 @@
+@using MongoDB.Bson
+@using MongoDB.Bson.IO
+
+@if (Documents is null)
+{
+    <div class="alert alert-info">
+        <em>Loading collection data from MongoDB...</em>
+    </div>
+}
+else if (Documents.Count == 0)
+{
+    <div class="alert alert-warning">
+        <em>No records found in the @CollectionName collection.</em>
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    @foreach (var column in _columns)
+                    {
+                        <th>@column</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in _rows)
+                {
+                    <tr>
+                        @foreach (var column in _columns)
+                        {
+                            <td>@GetCellValue(row, column)</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public string CollectionName { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public List<BsonDocument>? Documents { get; set; }
+
+    private List<Dictionary<string, string>> _rows = [];
+    private List<string> _columns = [];
+
+    protected override void OnParametersSet()
+    {
+        _rows = Documents?.Select(FlattenDocument).ToList() ?? [];
+        _columns = _rows
+            .SelectMany(row => row.Keys)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(column => column.Equals("_id", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .ThenBy(column => column, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static Dictionary<string, string> FlattenDocument(BsonDocument document)
+    {
+        var row = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var element in document.Elements)
+        {
+            FlattenValue(element.Name, element.Value, row);
+        }
+
+        return row;
+    }
+
+    private static void FlattenValue(string key, BsonValue value, IDictionary<string, string> row)
+    {
+        if (value.IsBsonDocument)
+        {
+            foreach (var element in value.AsBsonDocument.Elements)
+            {
+                FlattenValue($"{key}.{element.Name}", element.Value, row);
+            }
+
+            return;
+        }
+
+        if (value.IsBsonArray)
+        {
+            var array = value.AsBsonArray;
+            row[key] = array.All(item => !item.IsBsonDocument && !item.IsBsonArray)
+                ? string.Join(", ", array.Select(FormatValue))
+                : value.ToJson(new JsonWriterSettings { OutputMode = JsonOutputMode.RelaxedExtendedJson });
+            return;
+        }
+
+        row[key] = FormatValue(value);
+    }
+
+    private static string FormatValue(BsonValue value)
+    {
+        if (value.IsBsonNull)
+        {
+            return string.Empty;
+        }
+
+        if (value.IsString)
+        {
+            return value.AsString;
+        }
+
+        if (value.IsBoolean)
+        {
+            return value.AsBoolean ? "True" : "False";
+        }
+
+        if (value.IsValidDateTime)
+        {
+            return value.ToUniversalTime().ToLocalTime().ToString("g");
+        }
+
+        return value.ToString() ?? string.Empty;
+    }
+
+    private static string GetCellValue(IReadOnlyDictionary<string, string> row, string column)
+    {
+        return row.TryGetValue(column, out var value) ? value ?? string.Empty : string.Empty;
+    }
+}

@@ -1,6 +1,19 @@
-﻿@page "/AdminPortal"
+@page "/AdminPortal"
+@using MongoDB.Bson
+@using TechTrackerBlazor.Services
+@inject TechTrackerHell DbService
 
 <PageTitle>Admin Portal</PageTitle>
 
 <h1>Admin Portal</h1>
 
+<CollectionTable CollectionName="Employees" Documents="employeeList" />
+
+@code {
+    private List<BsonDocument>? employeeList;
+
+    protected override async Task OnInitializedAsync()
+    {
+        employeeList = await DbService.GetAllEmployeesAsync();
+    }
+}

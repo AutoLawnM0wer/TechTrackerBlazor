@@ -1,6 +1,19 @@
-﻿@page "/RepairTickets"
+@page "/RepairTickets"
+@using MongoDB.Bson
+@using TechTrackerBlazor.Services
+@inject TechTrackerHell DbService
 
 <PageTitle>Repair Tickets</PageTitle>
 
 <h1>Repair Tickets</h1>
 
+<CollectionTable CollectionName="RepairOrders" Documents="repairOrderList" />
+
+@code {
+    private List<BsonDocument>? repairOrderList;
+
+    protected override async Task OnInitializedAsync()
+    {
+        repairOrderList = await DbService.GetAllRepairOrdersAsync();
+    }
+}
