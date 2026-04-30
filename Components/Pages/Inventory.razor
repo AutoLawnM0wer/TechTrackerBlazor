@@ -1,19 +1,223 @@
 @page "/Inventory"
-@using MongoDB.Bson
+@using TechTrackerBlazor.Models
 @using TechTrackerBlazor.Services
 @inject TechTrackerHell DbService
+@inject IJSRuntime JS
 
-<PageTitle>Inventory</PageTitle>
+<PageTitle>TechTracker - Inventory</PageTitle>
 
-<h1>Inventory</h1>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Inventory Management</h3>
+    <button class="btn btn-primary" @onclick="ToggleAddForm">
+        <span class="bi bi-box-seam" aria-hidden="true"></span> @(showAddForm ? "Cancel" : "Add Part")
+    </button>
+</div>
 
-<CollectionTable CollectionName="Inventory" Documents="inventoryList" />
+@if (showAddForm)
+{
+    <div class="card p-3 mb-4 shadow-sm border-primary">
+        <h5>Add New Part</h5>
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label text-muted small mb-0">Part Name</label>
+                <input @bind="newItem.PartName" class="form-control" placeholder="e.g. iPhone 13 Screen" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted small mb-0">Compatibility</label>
+                <input @bind="newItem.CompatibilityTag" class="form-control" placeholder="e.g. iPhone 13" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label text-muted small mb-0">Stock Qty</label>
+                <input @bind="newItem.Stock" type="number" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label text-muted small mb-0">Low Stock Alert</label>
+                <input @bind="newItem.LowStockThreshold" type="number" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label text-muted small mb-0">Cost</label>
+                <input @bind="newItem.Cost" type="number" step="0.01" class="form-control" placeholder="$0.00" />
+            </div>
+        </div>
+        <div class="row g-3 mt-1">
+            <div class="col-md-5">
+                <label class="form-label text-muted small mb-0">Location</label>
+                <input @bind="newItem.PartLocation" class="form-control" placeholder="e.g. Aisle 3, Shelf B" />
+            </div>
+            <div class="col-md-5">
+                <label class="form-label text-muted small mb-0">Supplier</label>
+                <input @bind="newItem.Supplier" class="form-control" placeholder="Supplier Name" />
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-success w-100" @onclick="AddInventoryItem">Save Part</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (isEditing && editingItem != null)
+{
+    <div class="card p-3 mb-4 border-info shadow">
+        <h5>Editing Part: @editingItem.PartName</h5>
+        <div class="row g-2 mb-2">
+            <div class="col-md-3">
+                <label class="form-label text-muted small mb-0">Part Name</label>
+                <input @bind="editingItem.PartName" class="form-control" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted small mb-0">Location</label>
+                <input @bind="editingItem.PartLocation" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label text-muted small mb-0">Stock</label>
+                <input @bind="editingItem.Stock" type="number" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label text-muted small mb-0">Threshold</label>
+                <input @bind="editingItem.LowStockThreshold" type="number" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label text-muted small mb-0">Cost</label>
+                <input @bind="editingItem.Cost" type="number" step="0.01" class="form-control" />
+            </div>
+        </div>
+        <div class="row g-2">
+            <div class="col-md-10 d-flex gap-3">
+                <div class="flex-grow-1">
+                    <label class="form-label text-muted small mb-0">Compatibility</label>
+                    <input @bind="editingItem.CompatibilityTag" class="form-control" />
+                </div>
+                <div class="flex-grow-1">
+                    <label class="form-label text-muted small mb-0">Supplier</label>
+                    <input @bind="editingItem.Supplier" class="form-control" />
+                </div>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-primary w-100 me-2" @onclick="SaveUpdate">Update</button>
+                <button class="btn btn-secondary w-100" @onclick="() => isEditing = false">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (inventoryList == null)
+{
+    <div class="alert alert-info"><em>Loading inventory from MongoDB...</em></div>
+}
+else if (inventoryList.Count == 0)
+{
+    <div class="alert alert-warning"><em>No inventory items found.</em></div>
+}
+else
+{
+    <div class="table-responsive shadow-sm border rounded">
+        <table class="table table-striped table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Part Name</th>
+                    <th>Location</th>
+                    <th>Compatibility</th>
+                    <th>Stock Level</th>
+                    <th>Cost</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (InventoryItem item in inventoryList)
+                {
+                    <tr>
+                        <td><strong>@item.PartName</strong><br/><small class="text-muted">@item.Supplier</small></td>
+                        <td>@item.PartLocation</td>
+                        <td>@item.CompatibilityTag</td>
+                        <td>
+                            <span class="badge @(item.Stock <= item.LowStockThreshold ? "bg-danger" : "bg-success")">
+                                @item.Stock in stock
+                            </span>
+                        </td>
+                        <td>@item.Cost.ToString(format: "C")</td>
+                        <td class="text-end">
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-info" @onclick="() => StartEdit(item)">Manage</button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteInventoryItem(item.Id)">Delete</button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
 
 @code {
-    private List<BsonDocument>? inventoryList;
+    private List<InventoryItem>? inventoryList;
+    private InventoryItem newItem = new InventoryItem();
+    private InventoryItem? editingItem;
+    private bool showAddForm = false;
+    private bool isEditing = false;
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadInventory();
+    }
+
+    private async Task LoadInventory()
+    {
         inventoryList = await DbService.GetAllInventoryAsync();
+    }
+
+    private void ToggleAddForm() => showAddForm = !showAddForm;
+
+    private async Task AddInventoryItem()
+    {
+        if (!string.IsNullOrWhiteSpace(newItem.PartName))
+        {
+            await DbService.CreateInventoryItemAsync(newItem);
+            newItem = new InventoryItem(); 
+            showAddForm = false;
+            await LoadInventory();
+        }
+    }
+
+    private async Task StartEdit(InventoryItem item)
+    {
+        await JS.InvokeVoidAsync(identifier: "window.scrollTo", 0, 0);
+
+        editingItem = new InventoryItem
+        {
+            Id = item.Id,
+            PartName = item.PartName,
+            PartLocation = item.PartLocation,
+            Stock = item.Stock,
+            LowStockThreshold = item.LowStockThreshold,
+            Cost = item.Cost,
+            CompatibilityTag = item.CompatibilityTag,
+            Supplier = item.Supplier
+        };
+        isEditing = true;
+    }
+
+    private async Task SaveUpdate()
+    {
+        if (editingItem != null)
+        {
+            await DbService.UpdateInventoryItemAsync(editingItem);
+            isEditing = false;
+            await LoadInventory();
+        }
+    }
+
+    private async Task DeleteInventoryItem(string? id)
+    {
+        if (!string.IsNullOrEmpty(id))
+        {
+            bool isConfirmed = await JS.InvokeAsync<bool>(identifier: "window.confirm", "Are you sure you want to delete this part from inventory?");
+            
+            if (isConfirmed)
+            {
+                await DbService.DeleteInventoryItemAsync(id);
+                await JS.InvokeVoidAsync(identifier: "window.scrollTo", 0, 0); 
+                await LoadInventory();
+            }
+        }
     }
 }
