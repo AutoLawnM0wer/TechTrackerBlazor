@@ -1,19 +1,176 @@
 @page "/Transactions"
-@using MongoDB.Bson
+@using TechTrackerBlazor.Models
 @using TechTrackerBlazor.Services
 @inject TechTrackerHell DbService
+@inject IJSRuntime JS
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
-<PageTitle>Transactions</PageTitle>
+<PageTitle>TechTracker - Transaction</PageTitle>
 
-<h1>Transactions</h1>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Transaction Ledger</h3>
+    <button class="btn btn-primary" @onclick="ToggleAddForm">
+        <span class="bi bi-cash-coin" aria-hidden="true"></span> @(showAddForm ? "Cancel" : "New Transaction")
+    </button>
+</div>
 
-<CollectionTable CollectionName="Transactions" Documents="transactionList" />
+@if (showAddForm)
+{
+    <div class="card p-3 mb-4 shadow-sm border-success">
+        <h5 class="text-success">Register Checkout</h5>
+        <div class="row g-3">
+            <div class="col-md-5">
+                <label class="form-label text-muted small mb-0">Completed Repair Ticket</label>
+                <select @bind="newTransaction.OrderId" class="form-select">
+                    <option value="">-- Select Repair Ticket --</option>
+                    @if (repairList != null)
+                    {
+                        @foreach (RepairOrder repair in repairList)
+                        {
+                            <option value="@repair.Id">@repair.IssueType (Est: @repair.EstimatedCost.ToString("C"))</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted small mb-0">Payment Method</label>
+                <select @bind="newTransaction.PaymentMethod" class="form-select">
+                    <option value="Credit Card">Credit Card</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Check">Check</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label text-muted small mb-0">Final Cost</label>
+                <input @bind="newTransaction.Cost" type="number" step="0.01" class="form-control" placeholder="$0.00" />
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-success w-100" @onclick="AddTransaction">Process Payment</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (transactionList == null)
+{
+    <div class="alert alert-info"><em>Loading ledger from MongoDB...</em></div>
+}
+else if (transactionList.Count == 0)
+{
+    <div class="alert alert-warning"><em>No transactions found.</em></div>
+}
+else
+{
+    <div class="table-responsive shadow-sm border rounded">
+        <table class="table table-striped table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Date & Time</th>
+                    <th>Ticket Reference</th>
+                    <th>Payment Method</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (TransactionRecord record in transactionList)
+                {
+                    <tr>
+                        <td>@record.Date.ToShortDateString()</td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(record.OrderId))
+                            {
+                                <span class="badge border text-dark bg-light shadow-sm">
+                                    <i class="bi bi-hash text-primary"></i> 
+                                    TKT-@record.OrderId.Substring(record.OrderId.Length - 5).ToUpper()
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="text-muted small"><em>Direct Sale</em></span>
+                            }
+                        </td>
+                        <td>@record.PaymentMethod</td>
+                        <td><strong>@record.Cost.ToString(format: "C")</strong></td>
+                        <td>
+                            @if (record.Completed)
+                            {
+                                <span class="badge bg-success">Paid in Full</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning text-dark">Pending Payment</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            @if (record.Completed)
+                            {
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => RefundTransaction(record.Id)">Refund</button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-sm btn-success" @onclick="() => MarkAsPaid(record.Id)">Collect Payment</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
 
 @code {
-    private List<BsonDocument>? transactionList;
+    private List<TransactionRecord>? transactionList;
+    private List<RepairOrder>? repairList;
+    
+    private TransactionRecord newTransaction = new TransactionRecord();
+    private bool showAddForm = false;
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
         transactionList = await DbService.GetAllTransactionsAsync();
+        
+        repairList = await DbService.GetAllRepairsAsync();
+    }
+
+    private void ToggleAddForm() => showAddForm = !showAddForm;
+
+    private async Task AddTransaction()
+    {
+        if (!string.IsNullOrWhiteSpace(newTransaction.OrderId) && newTransaction.Cost > 0)
+        {
+            await DbService.CreateTransactionAsync(newTransaction);
+            newTransaction = new TransactionRecord(); 
+            showAddForm = false;
+            await LoadData();
+        }
+    }
+
+    private async Task RefundTransaction(string? id)
+    {
+        if (!string.IsNullOrEmpty(id))
+        {
+            bool isConfirmed = await JS.InvokeAsync<bool>(identifier: "window.confirm", "MANAGER OVERRIDE REQUIRED: Are you sure you want to refund and void this transaction? This will impact daily revenue.");
+            
+            if (isConfirmed)
+            {
+                await DbService.RefundTransactionAsync(id);
+                await LoadData();
+            }
+        }
+    }
+    private async Task MarkAsPaid(string? id)
+    {
+        if (!string.IsNullOrEmpty(id))
+        {
+            await DbService.MarkTransactionPaidAsync(id);
+            await LoadData(); 
+        }
     }
 }
