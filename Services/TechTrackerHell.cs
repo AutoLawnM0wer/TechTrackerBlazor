@@ -2,14 +2,13 @@ using MongoDB.Driver;
 using MongoDB.Bson;
 using Microsoft.Extensions.Options;
 using TechTrackerBlazor.Models;
-using TechTrackerBlazor.Settings;
+using TechTrackerBlazor.Settings; 
 
 namespace TechTrackerBlazor.Services;
 
 public class TechTrackerHell
 {
     private static readonly string[] ActiveRepairStatuses = ["Pending", "In Progress", "Completed"];
-    private readonly IMongoDatabase database;
     private readonly IMongoCollection<Customer> customers;
     private readonly IMongoCollection<DeviceAsset> devices;
     private readonly IMongoCollection<Employee> employees;
@@ -20,7 +19,7 @@ public class TechTrackerHell
     public TechTrackerHell(IOptions<MongoDbSettings> settings)
     {
         var client = new MongoClient(settings.Value.ConnectionString);
-        database = client.GetDatabase(settings.Value.DatabaseName);
+        var database = client.GetDatabase(settings.Value.DatabaseName);
 
         customers = database.GetCollection<Customer>("Customers");
         devices = database.GetCollection<DeviceAsset>("Devices");
@@ -29,8 +28,7 @@ public class TechTrackerHell
         repairs = database.GetCollection<RepairOrder>("RepairOrders");
         transactions = database.GetCollection<TransactionRecord>("Transactions");
     }
-    // --- DASHBOARD ANALYTICS METHODS ---
-    // Requirement: Average repair turnaround times
+
     public async Task<double> GetAverageTurnaroundTimeAsync()
     {
         var pipeline = new[]
@@ -52,9 +50,16 @@ public class TechTrackerHell
         return Math.Round(ms / (1000 * 60 * 60 * 24), 1); 
     }
 
-    // Requirement: Most frequent repair types (Bar Chart Data)
+    
     public async Task<Dictionary<string, int>> GetRepairTypeStatsAsync()
     {
+        var stats = new Dictionary<string, int>
+        {
+            { "Pending", 0 },
+            { "In Progress", 0 },
+            { "Completed", 0 }
+        };
+
         var pipeline = new[]
         {
             new BsonDocument("$group", new BsonDocument { 
@@ -64,54 +69,137 @@ public class TechTrackerHell
         };
         
         var result = await repairs.Aggregate<BsonDocument>(pipeline).ToListAsync();
-        return result.ToDictionary(
-            x => GetRepairStatsKey(x["_id"]),
-            x => x["count"].AsInt32);
+
+        
+        foreach (var doc in result)
+        {
+            
+            var status = doc["_id"].IsBsonNull ? "Unknown" : doc["_id"].AsString;
+            
+            if (stats.ContainsKey(status))
+            {
+                stats[status] = doc["count"].AsInt32;
+            }
+        }
+
+        return stats;
     }
 
-    // Requirement: Monthly revenue trends (Line Chart Data)
     public async Task<Dictionary<string, decimal>> GetMonthlyRevenueAsync()
     {
         var result = await transactions.Find(t => t.Completed).ToListAsync();
 
-        return result
-            .GroupBy(t => new DateTime(t.Date.Year, t.Date.Month, 1))
-            .OrderBy(g => g.Key)
-            .ToDictionary(g => g.Key.ToString("MMM yyyy"), g => g.Sum(t => t.Cost));
+        return result.GroupBy(t => t.Date.ToString("MMM yyyy"))
+            .ToDictionary(g => g.Key, g => g.Sum(t => t.Cost));
     }
 
-    // --- EXISTING DATA METHODS ---
 
     public async Task<List<Customer>> GetAllCustomersAsync()
     {
         return await customers.Find(_ => true).ToListAsync();
     }
 
-    public async Task<List<BsonDocument>> GetCollectionDocumentsAsync(string collectionName)
+    public async Task CreateCustomerAsync(Customer newCustomer)
     {
-        return await database
-            .GetCollection<BsonDocument>(collectionName)
-            .Find(FilterDefinition<BsonDocument>.Empty)
-            .ToListAsync();
+        await customers.InsertOneAsync(newCustomer);
     }
 
-    public Task<List<BsonDocument>> GetAllDevicesAsync() => GetCollectionDocumentsAsync("Devices");
-
-    public Task<List<BsonDocument>> GetAllEmployeesAsync() => GetCollectionDocumentsAsync("Employees");
-
-    public Task<List<BsonDocument>> GetAllInventoryAsync() => GetCollectionDocumentsAsync("Inventory");
-
-    public Task<List<BsonDocument>> GetAllRepairOrdersAsync() => GetCollectionDocumentsAsync("RepairOrders");
-
-    public Task<List<BsonDocument>> GetAllTransactionsAsync() => GetCollectionDocumentsAsync("Transactions");
-
-    private static string GetRepairStatsKey(BsonValue value)
+    public async Task DeleteCustomerAsync(string id)
     {
-        if (value.IsBsonNull)
+        await customers.DeleteOneAsync(c => c.Id == id);
+    }
+
+    public async Task UpdateCustomerAsync(Customer updatedCustomer)
+    {
+        await customers.ReplaceOneAsync(c => c.Id == updatedCustomer.Id, updatedCustomer);
+    }
+
+    public async Task<List<RepairOrder>> GetAllRepairsAsync()
+    {
+        return await repairs.Find(_ => true).ToListAsync();
+    }
+
+    public async Task CreateRepairAsync(RepairOrder newRepair)
+    {
+        newRepair.CreationDate = DateTime.UtcNow;
+        await repairs.InsertOneAsync(newRepair);
+    }
+
+    public async Task UpdateRepairAsync(RepairOrder updatedRepair)
+    {
+        updatedRepair.UpdateDate = DateTime.UtcNow;
+        if (updatedRepair.Status == "Completed" && updatedRepair.CompletionDate == null)
         {
-            return "Unknown";
+            updatedRepair.CompletionDate = DateTime.UtcNow;
         }
-
-        return value.ToString() ?? "Unknown";
+        await repairs.ReplaceOneAsync(r => r.Id == updatedRepair.Id, updatedRepair);
     }
+
+    public async Task DeleteRepairAsync(string id)
+    {
+        await repairs.DeleteOneAsync(r => r.Id == id);
+    }
+
+    public async Task<List<InventoryItem>> GetAllInventoryAsync()
+    {
+        return await inventory.Find(_ => true).ToListAsync();
+    }
+
+    public async Task CreateInventoryItemAsync(InventoryItem newItem)
+    {
+        await inventory.InsertOneAsync(newItem);
+    }
+
+    public async Task UpdateInventoryItemAsync(InventoryItem updatedItem)
+    {
+        await inventory.ReplaceOneAsync(i => i.Id == updatedItem.Id, updatedItem);
+    }
+
+    public async Task DeleteInventoryItemAsync(string id)
+    {
+        await inventory.DeleteOneAsync(i => i.Id == id);
+    }
+    public async Task<List<DeviceAsset>> GetAllDevicesAsync()
+    {
+        return await devices.Find(_ => true).ToListAsync();
+    }
+
+    public async Task CreateDeviceAsync(DeviceAsset newDevice)
+    {
+        await devices.InsertOneAsync(newDevice);
+    }
+
+    public async Task UpdateDeviceAsync(DeviceAsset updatedDevice)
+    {
+        await devices.ReplaceOneAsync(d => d.Id == updatedDevice.Id, updatedDevice);
+    }
+
+    public async Task DeleteDeviceAsync(string id)
+    {
+        await devices.DeleteOneAsync(d => d.Id == id);
+    }
+
+    public async Task<List<TransactionRecord>> GetAllTransactionsAsync()
+    {
+        return await transactions.Find(_ => true).SortByDescending(t => t.Date).ToListAsync();
+    }
+
+    public async Task CreateTransactionAsync(TransactionRecord newTransaction)
+    {
+        newTransaction.Date = DateTime.UtcNow; 
+        await transactions.InsertOneAsync(newTransaction);
+    }
+
+    public async Task RefundTransactionAsync(string id)
+    {
+        var update = Builders<TransactionRecord>.Update.Set(t => t.Completed, false);
+        await transactions.UpdateOneAsync(t => t.Id == id, update);
+    }
+
+    public async Task MarkTransactionPaidAsync(string id)
+    {
+        var update = Builders<TransactionRecord>.Update.Set(t => t.Completed, true);
+        await transactions.UpdateOneAsync(t => t.Id == id, update);
+    }
+    
 }
