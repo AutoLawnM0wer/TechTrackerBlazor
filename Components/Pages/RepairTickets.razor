@@ -1,19 +1,231 @@
 @page "/RepairTickets"
-@using MongoDB.Bson
+@using TechTrackerBlazor.Models
 @using TechTrackerBlazor.Services
 @inject TechTrackerHell DbService
+@inject IJSRuntime JS
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
-<PageTitle>Repair Tickets</PageTitle>
+<PageTitle>TechTracker - Repair Tickets</PageTitle>
 
-<h1>Repair Tickets</h1>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Repair Tickets</h3>
+    <button class="btn btn-primary" @onclick="ToggleAddForm">
+        <span class="bi bi-tools" aria-hidden="true"></span> @(showAddForm ? "Cancel" : "New Ticket")
+    </button>
+</div>
 
-<CollectionTable CollectionName="RepairOrders" Documents="repairOrderList" />
+@if (showAddForm)
+{
+    <div class="card p-3 mb-4 shadow-sm border-primary">
+        <h5>Create Repair Ticket</h5>
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label text-muted small mb-0">Issue Type</label>
+                <input @bind="newRepair.IssueType" class="form-control" placeholder="e.g. Screen Replacement" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label text-muted small mb-0">Priority</label>
+                <select @bind="newRepair.Priority" class="form-select">
+                    <option value="Low">Low</option>
+                    <option value="Normal">Normal</option>
+                    <option value="High">High</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label text-muted small mb-0">Est. Cost</label>
+                <input @bind="newRepair.EstimatedCost" type="number" class="form-control" placeholder="$0.00" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted small mb-0">Customer</label>
+                <select @bind="newRepair.CustomerId" class="form-select">
+                    <option value="">-- Select Customer --</option>
+                    @if (customerList != null)
+                    {
+                        @foreach (Customer cust in customerList)
+                        {
+                            <option value="@cust.Id">@cust.FirstName @cust.LastName</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-success w-100" @onclick="AddRepair">Save Ticket</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (isEditing && editingRepair != null)
+{
+    <div class="card p-3 mb-4 border-info shadow">
+        <h5>Editing Ticket: @editingRepair.IssueType</h5>
+        <div class="row g-2 mb-3">
+            <div class="col-md-3">
+                <label class="form-label text-muted small mb-0">Status</label>
+                <select @bind="editingRepair.Status" class="form-select border-info">
+                    <option value="Pending">Pending</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label text-muted small mb-0">Priority</label>
+                <select @bind="editingRepair.Priority" class="form-select">
+                    <option value="Low">Low</option>
+                    <option value="Normal">Normal</option>
+                    <option value="High">High</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label text-muted small mb-0">Billable Hours</label>
+                <input @bind="editingRepair.HoursBillable" type="number" step="0.5" class="form-control" />
+            </div>
+            <div class="col-md-5">
+                <label class="form-label text-muted small mb-0">Parts Used</label>
+                <input @bind="editingRepair.PartsUsed" class="form-control" placeholder="List parts..." />
+            </div>
+        </div>
+        <div class="row g-2">
+            <div class="col-md-10">
+                <label class="form-label text-muted small mb-0">Technician Notes</label>
+                <input @bind="editingRepair.Notes" class="form-control" placeholder="Notes..." />
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-primary w-100 me-2" @onclick="SaveUpdate">Update</button>
+                <button class="btn btn-secondary w-100" @onclick="() => isEditing = false">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (repairList == null)
+{
+    <div class="alert alert-info"><em>Loading tickets from MongoDB...</em></div>
+}
+else if (repairList.Count == 0)
+{
+    <div class="alert alert-warning"><em>No repair tickets found.</em></div>
+}
+else
+{
+    <div class="table-responsive shadow-sm border rounded">
+        <table class="table table-striped table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Status</th>
+                    <th>Issue Type</th>
+                    <th>Priority</th>
+                    <th>Est. Cost</th>
+                    <th>Created On</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (RepairOrder repair in repairList)
+                {
+                    <tr>
+                        <td>
+                            <span class="badge @(repair.Status == "Completed" ? "bg-success" : repair.Status == "In Progress" ? "bg-warning text-dark" : "bg-secondary")">
+                                @repair.Status
+                            </span>
+                        </td>
+                        <td>@repair.IssueType</td>
+                        <td>
+                            <span class="badge @(repair.Priority == "High" ? "bg-danger" : "bg-info text-dark")">
+                                @repair.Priority
+                            </span>
+                        </td>
+                        <td>@repair.EstimatedCost.ToString(format: "C")</td>
+                        <td>@repair.CreationDate.ToShortDateString()</td>
+                        <td class="text-end">
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-info" @onclick="() => StartEdit(repair)">Manage</button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteRepair(repair.Id)">Delete</button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
 
 @code {
-    private List<BsonDocument>? repairOrderList;
+    private List<RepairOrder>? repairList;
+    private List<Customer>? customerList;
+    private RepairOrder newRepair = new RepairOrder();
+    private RepairOrder? editingRepair;
+    private bool showAddForm = false;
+    private bool isEditing = false;
 
     protected override async Task OnInitializedAsync()
     {
-        repairOrderList = await DbService.GetAllRepairOrdersAsync();
+        await LoadRepairs();
+    }
+
+    private async Task LoadRepairs()
+    {
+        repairList = await DbService.GetAllRepairsAsync();
+        customerList = await DbService.GetAllCustomersAsync();
+    }
+
+    private void ToggleAddForm() => showAddForm = !showAddForm;
+
+    private async Task AddRepair()
+    {
+        if (!string.IsNullOrWhiteSpace(newRepair.IssueType))
+        {
+            await DbService.CreateRepairAsync(newRepair);
+            newRepair = new RepairOrder(); 
+            showAddForm = false;
+            await LoadRepairs();
+        }
+    }
+
+    private async Task StartEdit(RepairOrder repair)
+    {
+        await JS.InvokeVoidAsync(identifier: "window.scrollTo", 0, 0);
+
+        editingRepair = new RepairOrder
+        {
+            Id = repair.Id,
+            CustomerId = repair.CustomerId,
+            DeviceId = repair.DeviceId,
+            AssignedEmployeeId = repair.AssignedEmployeeId,
+            Status = repair.Status,
+            HoursBillable = repair.HoursBillable,
+            PartsUsed = repair.PartsUsed,
+            Notes = repair.Notes,
+            EstimatedCost = repair.EstimatedCost,
+            IssueType = repair.IssueType,
+            Priority = repair.Priority,
+            CreationDate = repair.CreationDate
+        };
+        isEditing = true;
+    }
+
+    private async Task SaveUpdate()
+    {
+        if (editingRepair != null)
+        {
+            await DbService.UpdateRepairAsync(editingRepair);
+            isEditing = false;
+            await LoadRepairs();
+        }
+    }
+
+    private async Task DeleteRepair(string? id)
+    {
+        if (!string.IsNullOrEmpty(id))
+        {
+            bool isConfirmed = await JS.InvokeAsync<bool>(identifier: "window.confirm", "Are you sure you want to delete this ticket? This action cannot be undone.");
+
+            if (isConfirmed)
+            {
+                await DbService.DeleteRepairAsync(id);
+                await JS.InvokeVoidAsync(identifier: "window.scrollTo", 0, 0); 
+                await LoadRepairs();
+            }
+        }
     }
 }
