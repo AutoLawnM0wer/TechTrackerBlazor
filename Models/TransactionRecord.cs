@@ -3,6 +3,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace TechTrackerBlazor.Models
 {
+    [BsonIgnoreExtraElements]
     public class TransactionRecord
     {
         [BsonId]
@@ -13,16 +14,9 @@ namespace TechTrackerBlazor.Models
         [BsonRepresentation(BsonType.ObjectId)]
         public string? OrderId { get; set; }
 
-        [BsonElement("Cost")]
         public decimal Cost { get; set; }
-
-        [BsonElement("PaymentMethod")]
-        public string? PaymentMethod { get; set; }
-
-        [BsonElement("Date")]
-        public DateTime Date { get; set; }
-
-        [BsonElement("Completed")] 
-        public bool Completed { get; set; }
+        public string PaymentMethod { get; set; } = "Credit Card";
+        public DateTime Date { get; set; } = DateTime.UtcNow;
+        public bool Completed { get; set; } = false; 
     }
 }
