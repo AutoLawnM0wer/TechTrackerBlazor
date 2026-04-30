@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace TechTrackerBlazor.Models;
 
@@ -29,7 +29,6 @@ public class Employee
 
     [Required]
     public string EmployeeRole { get; set; } = "Technician";
-    ///indexes to-be-implemented: FirstName, LastName, Email, EmployeeRole  aislopfilledthistext
 }
 
 public class Address
