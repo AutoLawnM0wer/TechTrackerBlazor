@@ -9,14 +9,17 @@ namespace TechTrackerBlazor
     {
         public static void Main(string[] args)
         {
-            Env.Load("connection.env");
+            DotNetEnv.Env.Load("connection.env");
+
             var builder = WebApplication.CreateBuilder(args);
+
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
 
             builder.Services.Configure<MongoDbSettings>(
-                builder.Configuration.GetSection("MongoDbSettings"));
-                     builder.Services.AddSingleton<TechTrackerHell>();
+            builder.Configuration.GetSection("MongoDbSettings"));
+            
+            builder.Services.AddSingleton<TechTrackerHell>();
 
             var app = builder.Build();
 
