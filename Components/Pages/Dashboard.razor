@@ -2,11 +2,13 @@
 @using ChartJs.Blazor
 @using ChartJs.Blazor.Common
 @using ChartJs.Blazor.Common.Axes
+@using ChartJs.Blazor.Common.Axes.Ticks
 @using ChartJs.Blazor.Common.Enums
 @using ChartJs.Blazor.BarChart
 @using TechTrackerBlazor.Services
 @using TechTrackerBlazor.Models
 @inject TechTrackerHell DbService
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>TechTracker - Business Dashboard</PageTitle>
 
@@ -85,37 +87,51 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // 1. Fetch Analytics from the service
-        var revenueData = await DbService.GetMonthlyRevenueAsync();
-        currentMonthRevenue = revenueData.Values.LastOrDefault(); // Fulfills Revenue Trend requirement
+        Dictionary<string, decimal>? revenueData = await DbService.GetMonthlyRevenueAsync();
+        currentMonthRevenue = revenueData.Values.LastOrDefault(); 
 
-        avgTurnaroundDays = await DbService.GetAverageTurnaroundTimeAsync(); // Fulfills Turnaround requirement
+        avgTurnaroundDays = await DbService.GetAverageTurnaroundTimeAsync(); 
 
-        var repairStats = await DbService.GetRepairTypeStatsAsync(); // Fulfills Frequency requirement
-        activeRepairCount = repairStats.ContainsKey("In Progress") ? repairStats["In Progress"] : 0;
+        Dictionary<string, int>? repairStats = await DbService.GetRepairTypeStatsAsync(); 
+        
+        repairStats.TryGetValue(key: "In Progress", out activeRepairCount);
+        
+        int maxRepairs = repairStats.Values.Any() ? repairStats.Values.Max() : 10;
 
-        // 2. Configure Bar Chart
         _barConfig = new BarConfig
         {
             Options = new BarOptions
             {
                 Responsive = true,
                 Legend = new Legend { Display = false },
-                Title = new OptionsTitle { Display = false }
+                Title = new OptionsTitle { Display = false },
+                Scales = new BarScales
+                {
+                    YAxes = new List<CartesianAxis>
+                    {
+                        new LinearCartesianAxis
+                        {
+                            Ticks = new LinearCartesianTicks
+                            {
+                                BeginAtZero = true,
+                                SuggestedMax = maxRepairs + 2
+                            }
+                        }
+                    }
+                }
             }
         };
 
-        foreach (var key in repairStats.Keys)
+        foreach (string key in repairStats.Keys)
         {
             _barConfig.Data.Labels.Add(key);
         }
 
         IDataset<int> dataset = new BarDataset<int>(repairStats.Values)
         {
-            BackgroundColor = new[] { "#0d6efd", "#198754", "#ffc107", "#dc3545" }
+            BackgroundColor = new[] { "#ffc107", "#198754", "#0d6efd", "#dc3545", "#6c757d" }
         };
 
         _barConfig.Data.Datasets.Add(dataset);
     }
-}﻿
-
+}
