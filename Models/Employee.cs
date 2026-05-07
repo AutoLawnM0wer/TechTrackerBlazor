@@ -1,47 +1,29 @@
-using System.ComponentModel.DataAnnotations;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 
-namespace TechTrackerBlazor.Models;
-
-public class Employee
+namespace TechTrackerBlazor.Models
 {
-    public string Id { get; set; } = Guid.NewGuid().ToString("N");
-
-    [Required]
-    [MaxLength(40)]
-    public string FirstName { get; set; } = string.Empty;
-
-    [Required]
-    [MaxLength(40)]
-    public string LastName { get; set; } = string.Empty;
-
-    [Required]
-    [EmailAddress]
-    public string Email { get; set; } = string.Empty;
-
-    [Required]
-    [Phone]
-    public string PhoneNumber { get; set; } = string.Empty;
-
-    public Address Address { get; set; } = new();
-
-    [Required]
-    public string PasswordHash { get; set; } = "demo-hash";
-
-    [Required]
-    public string EmployeeRole { get; set; } = "Technician";
-}
-
-public class Address
-{
-    [Required]
-    public string Street { get; set; } = string.Empty;
-
-    [Required]
-    public string City { get; set; } = string.Empty;
-
-    [Required]
-    public string State { get; set; } = string.Empty;
-
-    [Required]
-    public string Zip { get; set; } = string.Empty;
+    public class Address
+    {
+        public string? Street { get; set; }
+        public string? City { get; set; }
+        public string? State { get; set; }
+        public string? ZipCode { get; set; }
+    }
+    [BsonIgnoreExtraElements]
+    public class Employee
+    {
+        [BsonId]
+        [BsonRepresentation(BsonType.ObjectId)]
+        public string? Id { get; set; }
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public string? Email { get; set; }
+        public string? PhoneNumber { get; set; } 
+        [BsonElement("address")] 
+        public Address EmployeeAddress { get; set; } = new Address();
+        public string? PasswordHash { get; set; }
+        public string EmployeeRole { get; set; } = "Technician"; 
+        public bool isAvailable { get; set; } = true; 
+    }
 }
