@@ -27,7 +27,7 @@
                     {
                         @foreach (RepairOrder repair in repairList)
                         {
-                            <option value="@repair.Id">@repair.IssueType (Est: @repair.EstimatedCost.ToString("C"))</option>
+                            <option value="@repair.Id">@repair.IssueType (Est: @repair.EstimatedCost.ToString(format: "C"))</option>
                         }
                     }
                 </select>
@@ -106,7 +106,12 @@ else
                         <td class="text-end">
                             @if (record.Completed)
                             {
-                                <button class="btn btn-sm btn-outline-danger" @onclick="() => RefundTransaction(record.Id)">Refund</button>
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => PreviewReceipt(record)">
+                                        <i class="bi bi-receipt"></i> Receipt
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => RefundTransaction(record.Id)">Refund</button>
+                                </div>
                             }
                             else
                             {
@@ -120,13 +125,69 @@ else
     </div>
 }
 
+@if (showReceipt && receiptToPrint != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.6);">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content shadow-lg">
+                <div class="modal-header no-print bg-light">
+                    <h5 class="modal-title"><i class="bi bi-printer"></i> Print Receipt</h5>
+                    <button type="button" class="btn-close" @onclick="() => showReceipt = false"></button>
+                </div>
+                
+                <div class="modal-body bg-white text-dark" id="printable-receipt" style="font-family: monospace;">
+                    <div class="text-center mb-4">
+                        <h4 class="fw-bold mb-0">TechTracker</h4>
+                        <small>1233 University Pkwy<br />Johnson City, TN 37614</small><br/>
+                        <small>423-555-0198</small>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between border-bottom border-dark pb-2 mb-2 small">
+                        <span><strong>Date:</strong> @receiptToPrint.Date.ToLocalTime().ToShortDateString()</span>
+                        <span><strong>Time:</strong> @receiptToPrint.Date.ToLocalTime().ToShortTimeString()</span>
+                    </div>
+
+                    <div class="mb-3 small">
+                        <strong>Ticket Ref:</strong> 
+                        @(string.IsNullOrEmpty(receiptToPrint.OrderId) ? "Direct Sale" : "TKT-" + receiptToPrint.OrderId.Substring(receiptToPrint.OrderId.Length - 5).ToUpper())
+                    </div>
+
+                    <table class="table table-sm table-borderless mb-3 small">
+                        <tr>
+                            <td>Payment Method:</td>
+                            <td class="text-end">@receiptToPrint.PaymentMethod</td>
+                        </tr>
+                        <tr class="border-top border-dark">
+                            <th class="pt-2">TOTAL PAID:</th>
+                            <th class="text-end pt-2">@receiptToPrint.Cost.ToString(format: "C")</th>
+                        </tr>
+                    </table>
+
+                    <div class="text-center mt-4 border-top border-dark pt-2">
+                        <p class="small mb-0">Thank you for your business!</p>
+                        <p class="small text-muted" style="font-size: 0.7rem;">Powered by TechTracker</p>
+                    </div>
+                </div>
+
+                <div class="modal-footer no-print bg-light">
+                    <button class="btn btn-secondary w-100 mb-2" @onclick="() => showReceipt = false">Close</button>
+                    <button class="btn btn-primary w-100" @onclick="PrintReceipt">
+                        <i class="bi bi-printer-fill"></i> Print Now
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<TransactionRecord>? transactionList;
     private List<RepairOrder>? repairList;
-    
     private TransactionRecord newTransaction = new TransactionRecord();
     private bool showAddForm = false;
-
+    // Receipt Variables
+    private TransactionRecord? receiptToPrint;
+    private bool showReceipt = false;
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
@@ -135,7 +196,6 @@ else
     private async Task LoadData()
     {
         transactionList = await DbService.GetAllTransactionsAsync();
-        
         repairList = await DbService.GetAllRepairsAsync();
     }
 
@@ -143,7 +203,7 @@ else
 
     private async Task AddTransaction()
     {
-        if (!string.IsNullOrWhiteSpace(newTransaction.OrderId) && newTransaction.Cost > 0)
+        if (newTransaction.Cost > 0)
         {
             await DbService.CreateTransactionAsync(newTransaction);
             newTransaction = new TransactionRecord(); 
@@ -151,7 +211,6 @@ else
             await LoadData();
         }
     }
-
     private async Task RefundTransaction(string? id)
     {
         if (!string.IsNullOrEmpty(id))
@@ -172,5 +231,14 @@ else
             await DbService.MarkTransactionPaidAsync(id);
             await LoadData(); 
         }
+    }
+    private void PreviewReceipt(TransactionRecord record)
+    {
+        receiptToPrint = record;
+        showReceipt = true;
+    }
+    private async Task PrintReceipt()
+    {
+        await JS.InvokeVoidAsync(identifier: "window.print");
     }
 }
