@@ -201,5 +201,25 @@ public class TechTrackerHell
         var update = Builders<TransactionRecord>.Update.Set(t => t.Completed, true);
         await transactions.UpdateOneAsync(t => t.Id == id, update);
     }
+
+    public async Task<List<Employee>> GetAllEmployeesAsync()
+    {
+        return await employees.Find(_ => true).ToListAsync();
+    }
+
+    public async Task CreateEmployeeAsync(Employee newEmployee)
+    {
+        await employees.InsertOneAsync(newEmployee);
+    }
+
+    public async Task UpdateEmployeeAsync(Employee updatedEmployee)
+    {
+        await employees.ReplaceOneAsync(e => e.Id == updatedEmployee.Id, updatedEmployee);
+    }
+
+    public async Task DeleteEmployeeAsync(string id)
+    {
+        await employees.DeleteOneAsync(e => e.Id == id);
+    }
     
 }
