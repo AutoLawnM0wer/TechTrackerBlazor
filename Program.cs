@@ -22,6 +22,7 @@ namespace TechTrackerBlazor
             builder.Services.AddSingleton<TechTrackerHell>();
 
             var app = builder.Build();
+            app.Services.GetRequiredService<TechTrackerHell>().SeedTestDataAsync().GetAwaiter().GetResult();
 
             if (!app.Environment.IsDevelopment())
             {

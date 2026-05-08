@@ -9,6 +9,7 @@ namespace TechTrackerBlazor.Services;
 public class TechTrackerHell
 {
     private static readonly string[] ActiveRepairStatuses = ["Pending", "In Progress", "Completed"];
+    private readonly IMongoDatabase database;
     private readonly IMongoCollection<Customer> customers;
     private readonly IMongoCollection<DeviceAsset> devices;
     private readonly IMongoCollection<Employee> employees;
@@ -19,7 +20,7 @@ public class TechTrackerHell
     public TechTrackerHell(IOptions<MongoDbSettings> settings)
     {
         var client = new MongoClient(settings.Value.ConnectionString);
-        var database = client.GetDatabase(settings.Value.DatabaseName);
+        database = client.GetDatabase(settings.Value.DatabaseName);
 
         customers = database.GetCollection<Customer>("Customers");
         devices = database.GetCollection<DeviceAsset>("Devices");
@@ -28,6 +29,59 @@ public class TechTrackerHell
         repairs = database.GetCollection<RepairOrder>("RepairOrders");
         transactions = database.GetCollection<TransactionRecord>("Transactions");
     }
+
+   ///GENERATED WITH CHATGPT FOR FINAL TEST DATA INSERTION - start
+    public async Task SeedTestDataAsync()
+    {
+        var collectionNames = new[] { "Customers", "Devices", "Employees", "Inventory", "RepairOrders", "Transactions" };
+
+        foreach (var collectionName in collectionNames)
+        {
+            var collection = database.GetCollection<BsonDocument>(collectionName);
+            if (await collection.CountDocumentsAsync(FilterDefinition<BsonDocument>.Empty) > 0)
+            {
+                return;
+            }
+        }
+
+        var seedPath = Path.Combine(AppContext.BaseDirectory, "TestData", "seed-data.json");
+        if (!File.Exists(seedPath))
+        {
+            seedPath = Path.Combine(Directory.GetCurrentDirectory(), "TestData", "seed-data.json");
+        }
+
+        if (!File.Exists(seedPath))
+        {
+            return;
+        }
+
+        var seedData = BsonDocument.Parse(await File.ReadAllTextAsync(seedPath));
+        var seedCount = seedData.GetValue("SeedCount", 25).ToInt32();
+
+        foreach (var collectionName in collectionNames)
+        {
+            var collection = database.GetCollection<BsonDocument>(collectionName);
+            var template = seedData[collectionName].AsBsonDocument;
+            var documents = Enumerable.Range(0, seedCount)
+                .Select(index =>
+                {
+                    var document = new BsonDocument(template);
+                    if (index > 0)
+                    {
+                        document["_id"] = ObjectId.GenerateNewId();
+                    }
+
+                    return document;
+                })
+                .ToList();
+
+            if (documents.Count > 0)
+            {
+                await collection.InsertManyAsync(documents);
+            }
+        }
+    }
+    ///GENERATED WITH CHATGPT FOR FINAL TEST DATA INSERTION - finish
 
     public async Task<double> GetAverageTurnaroundTimeAsync()
     {
