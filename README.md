@@ -66,17 +66,24 @@ MongoDbSettings__DatabaseName=""
 
 Luke 
 ```
--
-```
-AJ 
-```
--
-```
-Alex
-```
--
+FRONTEND
+- Majority of Database design creation
+- Frontend layout and general design, including initial object/page oriented layout
+- MongoDB schema design
+- light documentation
+- Initial implementation and testing of early project version using data pulled from MongoDB
+- Chart.js debugging
 ```
 Vanay 
 ```
--
+FRONTEND 
 ```
+AJ 
+```
+DATABASE 
+```
+Alex
+```
+DATABASE 
+```
+
