@@ -1,6 +1,6 @@
 # TechTrackerBlazor
 TechTrackerBlazor is a Blazor WebAssembly application designed to help users track and manage their technology inventory. It provides features for adding, editing, and deleting technology items, as well as categorizing them for better organization.
-Uses C#, .NET and Chart.js. The framework is "Blazor Web App," which can be found in Visual Studio 2022.
+Uses C#, .NET, HTML and Chart.js. The framework is "Blazor Web App," which can be found in Visual Studio 2022.
 
 
 https://github.com/AutoLawnM0wer/TechTrackerBlazor
