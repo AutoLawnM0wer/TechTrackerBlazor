@@ -87,7 +87,11 @@ FRONTEND
 ```
 AJ 
 ```
-DATABASE 
+DATABASE
+Created collections for the MongoDB database.
+Creating indexes for the project.
+Inserting data into separate documents in the database.
+In charge of creating queries for the database.
 ```
 Alex
 ```
