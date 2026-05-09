@@ -76,7 +76,14 @@ FRONTEND
 ```
 Vanay 
 ```
-FRONTEND 
+FRONTEND
+-Implementation of the Transactions Ledger, including payment processing and refund logic with JS Interop
+-Development of the Admin Staff Portal with full CRUD capabilities for employee management
+-Built a custom Point-of-Sale (POS) printable receipt generator using CSS print media queries
+-UI/UX enhancements including dark-mode sidebar navigation redesign, layout spacing, and dynamic table formatting
+-Implemented relational data binding across Blazor pages (e.g., replacing raw ObjectIds with dynamic dropdowns and display names for Devices and Repair Tickets)
+-Resolved database schema inconsistencies and implemented C# models for complex nested MongoDB objects
+-MongoDB connection troubleshooting and service engine configuration (TechTrackerHell.cs)
 ```
 AJ 
 ```
